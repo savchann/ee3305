@@ -23,11 +23,28 @@ class Behavior(Node):
 
         # Handles: Topic Subscribers
         # !TODO: Goal pose subscriber
+        self.sub_goal_pose_ = self.create_subscription(
+            PoseStamped,               # Message type
+            "goal_pose",               # Topic name
+            self.callbackSubGoalPose_, # Callback function
+            10                         # QoS
+        )
 
         # !TODO: Odometry subscriber
+        self.sub_odom_ = self.create_subscription(
+            Odometry,
+            "odom",
+            self.callbackSubOdom_,
+            10
+        )
 
         # Handles: Topic Publishers
         # !TODO: Path request publisher
+        self.pub_path_request_ = self.create_subscription(
+            Path,
+            "path_request",
+            10
+        )
 
         # Handles: Timers
         self.timer = self.create_timer(1.0 / self.frequency_, self.callbackTimer_)
@@ -52,6 +69,7 @@ class Behavior(Node):
 
         # !TODO: Copy to goal_x_, goal_y_.
         self.goal_x_ = msg.pose.position.x
+        self.goal_y_ = msg.pose.position.y
 
         self.get_logger().info(
             f"Received New Goal @ ({self.goal_x_:7.3f}, {self.goal_y_:7.3f})."
@@ -62,7 +80,9 @@ class Behavior(Node):
         self.received_rbt_coords_ = True
 
         # !TODO: Copy to rbt_x_, rbt_y_.
-        self.rbt_x_ = msg.pose.pose.orientation.x
+        self.rbt_x_ = msg.pose.pose.position.x
+        self.rbt_y_ = msg.pose.pose.position.y
+
 
     # Callback for timer.
     # Normally the decisions of the robot system are made here, and this callback is dramatically simplified.
@@ -101,12 +121,17 @@ class Behavior(Node):
 
         # !TODO: write the robot coordinates
         rbt_pose = PoseStamped()
-        rbt_pose.pose.position.x = 0.0
+        rbt_pose.pose.position.x = self.rbt_x_
+        rbt_pose.pose.position.y = self.rbt_y_
 
         # !TODO: write the goal coordinates
-        
+        goal_pose = PoseStamped()
+        goal_pose.pose.position.x = self.goal_x_
+        goal_pose.pose.position.y = self.goal_y_
+
         # !TODO: fill up the array containing the robot coordinates at [0] and goal coordinates at [1]
         msg_path_request.poses.append(rbt_pose)
+        msg_path_request.poses.append(goal_pose)
 
         # publish the message
         self.get_logger().info(
