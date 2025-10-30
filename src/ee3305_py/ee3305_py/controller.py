@@ -102,6 +102,15 @@ class Controller(Node):
     # Make sure path and robot positions are already received, and the path contains at least one point.
     def getLookaheadPoint_(self):
         # Find the point along the path that is closest to the robot
+        min_dist = inf
+	# Find the point along the path that is closest to the robot
+        for i, pose in enumerate(self.path_poses_):
+            dx = pose.pose.position.x - self.rbt_x_
+            dy = pose.pose.position.y - self.rbt_y_
+            dist = hypot(dx, dy)
+            if dist < min_dist:
+                min_dist = dist
+                closest_idx = i
 
         # From the closest point, iterate towards the goal and find the first point that is at least a lookahead distance away.
         # Return the goal point if no such lookahead point can be found
@@ -130,19 +139,34 @@ class Controller(Node):
 
         # get lookahead point
         lookahead_x, lookahead_y = self.getLookaheadPoint_()
+        dx = lookahead_x - self.rbt_x_
+        dy = lookahead_y - self.rbt_y_
+
 
         # get distance to lookahead point (not to be confused with lookahead_distance)
 
         # stop the robot if close to the point.
+        distance = hypot(dx, dy)
+        if distance < self.stop_thres_:
+            lin_vel, ang_vel = 0.0, 0.0
+        else:
+             # transform lookahead into robot’s coordinate frame
+            lx = cos(-self.rbt_yaw_) * dx - sin(-self.rbt_yaw_) * dy
+            ly = sin(-self.rbt_yaw_) * dx + cos(-self.rbt_yaw_) * dy
+
 
         # get curvature
+        curvature = (2.0 * ly) / (distance**2)
 
         # calculate velocities
+        lin_vel = min(self.max_lin_vel_, self.lookahead_lin_vel_)
+        ang_vel = curvature * lin_vel
+        ang_vel = max(-self.max_ang_vel_, min(self.max_ang_vel_, ang_vel))
 
         # saturate velocities. The following can result in the wrong curvature,
         # but only when the robot is travelling too fast (which should not occur if well tuned).
-        lin_vel = 0.0
-        ang_vel = 0.0 * lookahead_x * lookahead_y
+        # lin_vel = 0.0
+        # ang_vel = 0.0 * lookahead_x * lookahead_y
 
         # publish velocities
         msg_cmd_vel = TwistStamped()
@@ -161,3 +185,5 @@ def main(args=None):
 
 if __name__ == "__main__":
     main()
+
+
